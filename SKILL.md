@@ -184,33 +184,6 @@ For more complex issues (messages not received, permission timeouts, high memory
 
 **Feishu upgrade note:** If the user upgraded from an older version of this skill and Feishu is returning permission errors (e.g. streaming cards not working, typing indicators failing, permission buttons unresponsive), the root cause is almost certainly missing permissions or callbacks in the Feishu backend. Refer the user to the "Upgrading from a previous version" section in `SKILL_DIR/references/setup-guides.md` — they need to add new scopes (`cardkit:card:write`, `cardkit:card:read`, `im:message:update`, `im:message.reactions:read`, `im:message.reactions:write_only`), add the `card.action.trigger` callback, and re-publish the app. The upgrade requires two publish cycles because adding the callback needs an active WebSocket connection (bridge must be running).
 
-## Multi-profile (run Codex and Claude Code bridges side by side)
-
-When the user runs both a Codex bridge and a Claude Code bridge on one machine, manage them through the unified wrapper instead of juggling `CTI_HOME` by hand:
-
-```bash
-scripts/bridges.sh list           # show configured profiles
-scripts/bridges.sh status all     # status of every profile
-scripts/bridges.sh doctor all     # per-profile doctor + launchd disabled check + config.env perms
-scripts/bridges.sh logs codex     # single-profile commands take the profile id
-scripts/bridges.sh start claude
-```
-
-Profiles live in `~/.claude-to-im/bridges.json` (override with `CTI_BRIDGES_CONFIG`); each entry sets `id`, `runtime` (`codex`/`claude`), `home`, `launchdLabel`, `channels`:
-
-```json
-{
-  "bridges": [
-    { "id": "codex",  "runtime": "codex",  "home": "/Users/me/.claude-to-im",        "launchdLabel": "com.claude-to-im.bridge",        "channels": ["feishu"] },
-    { "id": "claude", "runtime": "claude", "home": "/Users/me/.claude-to-im-claude", "launchdLabel": "com.claude-to-im.bridge.claude", "channels": ["feishu"] }
-  ]
-}
-```
-
-The parser is `src/profiles.ts` — duplicate ids/labels/homes are hard errors (two daemons sharing one home corrupt state). Secrets stay in each profile's `config.env` (chmod 600); `bridges.json` must never contain them.
-
-Doctor triage order for "bridge not replying": ① is the launchd label disabled? (`launchctl print-disabled gui/$(id -u)`) ② is the daemon process alive? ③ does the log show the websocket client ready? A disabled label is the most common silent failure — `doctor all` checks it first.
-
 ## Notes
 
 - Always mask secrets in output (show only last 4 characters) — users often share terminal output in bug reports, so exposed tokens would be a security incident.
